@@ -3,7 +3,7 @@ import TextField from '@mui/material/TextField';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Fab from '@mui/material/Fab';
 import AddIcon from '@mui/icons-material/Add';
-import { Box, Checkbox, Container, Grid, Typography } from '@mui/material';
+import { Box, Checkbox, Container, Grid, Typography, Snackbar, RadioGroup, FormControlLabel, Radio, FormControl } from '@mui/material';
 // import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -35,6 +35,9 @@ export default function ToDoApp(props: TodoAppProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>();
   const [load, setLoad] = useAtom(loadAtom);
   const [firstLoad, setFirstLoad] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [filterOption, setFilterOption] = useState('all'); // 'all', 'completed', 'uncompleted'
 
   // const [openDialog, setOpenDialog] = useState(false);
   // const [openIndex, setOpenIndex] = useState(0);
@@ -113,12 +116,17 @@ export default function ToDoApp(props: TodoAppProps) {
       };
       setTasks([...tasks, _newTask]);
       setNewTask('');
+
+      setSnackbarMessage('Task added successfully');
+      setSnackbarOpen(true);
     }
   };
 
   const removeTask = (index: number) => {
     const updatedTasks = tasks.filter((_, i) => i !== index);
     setTasks(updatedTasks);
+    setSnackbarMessage('Task deleted successfully');
+    setSnackbarOpen(true);
   };
 
   const toggleTaskCompletion = (index: number) => {
@@ -129,6 +137,23 @@ export default function ToDoApp(props: TodoAppProps) {
       return task;
     });
     setTasks(updatedTasks);
+  };
+
+  const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setFilterOption(event.target.value);
+  };
+
+  const filteredTasks = () => {
+    switch (filterOption) {
+      case 'completed':
+        return tasks.filter(task => task.completed);
+      case 'uncompleted':
+        return tasks.filter(task => !task.completed);
+      case 'due':
+        return tasks.filter(task => !task.completed && task.date !== null && dayjs(task.date).isBefore(dayjs(), 'day'));
+      default:
+        return tasks;
+    }
   };
 
   useEffect(() => {
@@ -145,73 +170,96 @@ export default function ToDoApp(props: TodoAppProps) {
   }, [tasks, firstLoad]);
 
   return (
-    <Container maxWidth="lg" style={{ display: 'flex', flexDirection: 'column', minHeight: '90vh' }}>
-      <div style={{ margin: '8px' }} />
-      <Box style={{ flex: 1 }}>
-        {tasks.map((data, index) => {
-          const isPast = !data.completed && dayjs(data.date).isBefore(dayjs(), 'day'); // Check if the date is before today
+    <>
+      <Container maxWidth="lg" style={{ display: 'flex', flexDirection: 'column' }}>
+        <Box style={{ flex: 1, minHeight: '85vh' }}>
+          <div style={{ margin: '8px' }} />
+          <FormControl component="fieldset" style={{ marginLeft: '3%', display: 'flex' }}>
+            <RadioGroup 
+              row aria-label="filter" 
+              name="filter" 
+              value={filterOption} 
+              onChange={handleFilterChange}
+            >
+              <FormControlLabel value="all" control={<Radio />} label="All" />
+              <FormControlLabel value="completed" control={<Radio />} label="Completed" />
+              <FormControlLabel value="uncompleted" control={<Radio />} label="Uncompleted" />
+              <FormControlLabel value="due" control={<Radio />} label="Due" />
+            </RadioGroup>
+          </FormControl>
+          {filteredTasks().map((data, index) => {
+            const isPast = !data.completed && dayjs(data.date).isBefore(dayjs(), 'day'); // Check if the date is before today
 
-          return (
-            <Card key={index} style={{ color: isPast ? 'red' : 'black', margin: '8px', textDecoration: data.completed ? 'line-through' : '' }}>
-              <CardContent>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={1}>
-                    <Checkbox
-                      color="primary"
-                      checked={data.completed || false}
-                      onChange={() => toggleTaskCompletion(index)}
-                    />
+            return (
+              <Card key={index} style={{ color: isPast ? 'red' : 'black', margin: '8px', textDecoration: data.completed ? 'line-through' : '' }}>
+                <CardContent>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={1}>
+                      <Checkbox
+                        color="primary"
+                        checked={data.completed || false}
+                        onChange={() => toggleTaskCompletion(index)}
+                      />
+                    </Grid>
+                    <Grid 
+                      item xs={9} 
+                      // onClick={() => {setOpenIndex(index); setOpenDialog(true);}}
+                    >
+                      <Typography variant="h5" align="left">
+                        {data.task}
+                      </Typography>
+                      <Typography variant="subtitle1" color={isPast ? 'red' : 'text.secondary'} component="div" align="left">
+                        {(data.date !== null) && (dayjs(data.date).format('MM/DD/YYYY') + (isPast ? ' due' : ''))}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={2} style={{ textAlign: 'right' }}>
+                      <Fab color="primary" aria-label="delete" onClick={() => removeTask(index)}>
+                        <DeleteIcon />
+                      </Fab>
+                    </Grid>
                   </Grid>
-                  <Grid 
-                    item xs={9} 
-                    // onClick={() => {setOpenIndex(index); setOpenDialog(true);}}
-                  >
-                    <Typography variant="h5" align="left">
-                      {data.task}
-                    </Typography>
-                    <Typography variant="subtitle1" color={isPast ? 'red' : 'text.secondary'} component="div" align="left">
-                      {(data.date !== null) && (dayjs(data.date).format('MM/DD/YYYY') + (isPast ? ' due' : ''))}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={2} style={{ textAlign: 'right' }}>
-                    <Fab color="primary" aria-label="delete" onClick={() => removeTask(index)}>
-                      <DeleteIcon />
-                    </Fab>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Box>
-      
-      <Grid container spacing={2}>
-        <Grid item xs={6} sm={8} md={8} lg={8}>
-          <TextField
-            label="New Task"
-            variant="outlined"
-            fullWidth
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-          />
-        </Grid>
-        <Grid item xs={4} sm={3} md={3} lg={3}>
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label="Select Date"
-              value={selectedDate ? dayjs(selectedDate) : null}
-              onChange={(date) => setSelectedDate(date?.toDate())}
-            />
-          </LocalizationProvider>
-        </Grid>
-        <Grid item xs={2} sm={1} md={1} lg={1}>
-          <Fab color="primary" aria-label="add" onClick={addTask}>
-            <AddIcon />
-          </Fab>
-        </Grid>
-      </Grid>
-
-      {/* <SimpleDialog/> */}
-    </Container>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Box>
+        
+        <Box>
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={8} md={8} lg={8}>
+              <TextField
+                label="New Task"
+                variant="outlined"
+                fullWidth
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={4} sm={3} md={3} lg={3}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Select Date"
+                  value={selectedDate ? dayjs(selectedDate) : null}
+                  onChange={(date) => setSelectedDate(date?.toDate())}
+                />
+              </LocalizationProvider>
+            </Grid>
+            <Grid item xs={2} sm={1} md={1} lg={1}>
+              <Fab color="primary" aria-label="add" onClick={addTask}>
+                <AddIcon />
+              </Fab>
+            </Grid>
+          </Grid>
+        </Box>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={1000} // 設定 Snackbar 顯示的時間
+          onClose={() => setSnackbarOpen(false)} // 關閉 Snackbar 時觸發的函數
+          message={snackbarMessage}
+          anchorOrigin={{vertical: 'bottom', horizontal: 'left'}}
+        />
+        {/* <SimpleDialog/> */}
+      </Container>
+    </>
   );
 }
